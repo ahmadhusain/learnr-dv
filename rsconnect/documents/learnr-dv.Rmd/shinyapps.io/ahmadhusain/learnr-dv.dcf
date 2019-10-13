@@ -1,0 +1,13 @@
+name: learnr-dv
+title: learnr-dv
+username:
+account: ahmadhusain
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 1323041
+bundleId: 2496673
+url: https://ahmadhusain.shinyapps.io/learnr-dv/
+when: 1570984230.29326
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: learnr-dv.html|data_input/USvideos.csv|tes/tes.Rmd|tes/rsconnect/documents/tes.Rmd/shinyapps.io/ahmadhusain/tesleanr.dcf

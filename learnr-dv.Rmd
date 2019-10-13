@@ -1,0 +1,377 @@
+---
+title: "Data Visualization with `ggplot2`"
+output: 
+  learnr::tutorial:
+    theme: simplex
+runtime: shiny_prerendered
+---
+
+```{r setup, include=FALSE}
+# setup chunk
+knitr::opts_chunk$set(
+  warning = FALSE,
+  message = FALSE,
+  fig.align = "center"
+)
+options(scipen = 999)
+Sys.setlocale('LC_ALL','C')
+
+# import libraries
+library(shiny)
+library(learnr)
+library(sortable)
+library(parsons)
+library(tidyverse)
+library(scales)
+library(glue)
+```
+
+## Chap.1: Basic Knowlegde
+
+### Data Science Workflow
+
+**Data science** is a multi-disciplinary field that uses scientific methods, processes, algorithms and systems to extract knowledge and insights from structured and unstructured data [(Dhar, 2013 )](https://cacm.acm.org/magazines/2013/12/169933-data-science-and-prediction/abstract). There is a certain workflow that applied in a data science project. Below is a good chart that explains the **workflow of a data science project** from a book by *Grolemund & Wickham*, titled [R for Data Science](https://www.oreilly.com/library/view/r-for-data/9781491910382/preface01.html).
+
+<center>
+![](www/workflow.jpg)
+</center>
+
+
+### The Grammer of Graphics 
+
+The `ggplot2` package is created by Hadley Wickham in 2005 as an implementation of Lelad Wilkinson’s Grammar of Graphics. The idea with Grammar of Graphics is to create a formal model for data visualization, by breaking down graphics into components that could be systematically added or subtracted by the end user.
+
+With `ggplot2`, plots may be created using `qplot()` where arguments and defaults are handled similarly to the base plotting system, or through `ggplot()` where user can add or alter plot components layer-by-layer with a high level of modularity.
+
+The latter is more important approach, because it allows the data scientists to work with plots in a system that breaks up these different tasks. Instead of a huge, conceptually flat list of parameters to control every aspect of the plot’s final outcome, this system makes plotting a series of distinct task, each focused on one aspect of the plot’s final output.
+
+
+## Chap.2: Data Visualization in Context
+
+Visualization is a powerful way to deliver a context from our data. If we could choose a good way to communicate our context, our audience will get the insight that we want to deliver.
+
+* Categorical ranking
+  - bar plot (`geom_bar` / `geom_col`)
+  - lollipop plot (`geom_segment`)
+* Data distribution
+  - Histogram plot (`geom_hist`)
+  - Density plot (`geom_density`)
+* Correlation between data
+  - Scatter plot (`geom_point`)
+* Map and geospatial
+  - leaflet
+  
+Good reference to leads you to the most appropriate graph for your data [data-to-viz](https://www.data-to-viz.com/) We will cover the basic way to visualize using the **attrition** dataset.
+
+```{r read-data}
+data_attrition <- read.csv("data_input/data-attrition.csv")
+head(data_attrition)
+```
+
+## Chap.2.1: Categorical Ranking
+
+Categorical ranking is one of the most basic ways to communicate how our categorical variable could show a different behaviour between its levels in terms of a numerical output.
+
+The aggregation steps has been done to save your time to visualize the context and named `data_viz`.
+
+```{r data-agg1, echo=FALSE}
+# aggregation
+data_agg <- data_attrition %>% 
+  group_by(education_field) %>% 
+  summarise(n = n()) %>% 
+  ungroup()
+
+# prepare visualization data
+data_viz <- data_agg %>% 
+  mutate(
+    education_field = education_field %>%
+      str_replace_all("_", " ") %>% 
+      str_to_title(),
+    education_field = reorder(education_field, -n),
+    n_percent = round(n / sum(n), 2),
+    label = glue("{n} ({n_percent} %)")
+  ) %>% 
+  select(education_field, n, label)
+
+head(data_viz)
+```
+
+### Exercise-1
+
+*For a starter, let’s try to see the ranking of `education_field` in terms of number of employee. **Use `data_viz` object and `geom_col()`**!*
+
+```{r exercise-1, exercise=TRUE, exercise.eval=TRUE}
+
+```
+
+*Congratulation on your first plot. Can you imagine how to replicate the following plot?*
+
+```{r data-viz1, echo=FALSE}
+# visualize
+ggplot(data_viz, aes(x = education_field, y = n)) +
+  geom_col(aes(fill = n)) +
+  geom_text(aes(label = label), nudge_y = 25) +
+  guides(fill = FALSE) +
+  labs(
+    title = "Number of employee",
+    subtitle = "reported from a batch of employee by education fields",
+    caption = "Source: IBM Watson",
+    x = NULL,
+    y = NULL
+  ) +
+  theme_minimal()
+```
+
+### Exercise-2
+
+*Drag and drop for the appropriate way to replicate the plot above:*
+
+```{r parsons-1, echo=FALSE}
+question_parsons(
+  initial = c(
+    "labs(...)",
+    "geom_col(aes(fill = n))",
+    "summarize(...)",
+    "aggregate(...)",
+    "ggplot(data_viz, aes(x = education_field, y = n))",
+    "geom_text(aes(label = label), nudge_y = 25)",
+    "guides(fill = FALSE)",
+    "theme_minimal()"
+    
+  ),
+  pass_if(
+    c(
+      "ggplot(data_viz, aes(x = education_field, y = n))",
+      "geom_col(aes(fill = n))",
+      "geom_text(aes(label = label), nudge_y = 25)",
+      "guides(fill = FALSE)",
+      "labs(...)",
+      "theme_minimal()"
+    )
+  ),
+  
+  fail_if(
+    ~length(.) < 6,
+    message = "Include six answers"
+  ),
+  
+  fail_if(
+    function(x){"summarize(...)" %in% x},
+    message = "You should not include summarize(...) in your answer"
+  ),
+  
+  fail_if(
+    function(x){"aggregate(...)" %in% x},
+    message = "You should not include aggregate(...) in your answer"
+  )
+)
+```
+
+### Exercise-3
+
+*From exercise above try to create your solution here:*
+
+```{r exercise-2, exercise=T, exercise.eval=TRUE}
+
+```
+
+
+## Chap.2.2: Data Distribution
+
+Data distribution is a, slightly statistical, way to see how our numerical data distributed inside our sample dataset. One thing that should be noted for this visualization: **it only works for continuous numerical variable**.
+
+*let’s see how monthly income is distributed between the employees if we use 30 bins:*
+
+
+```{r data-viz2, echo=FALSE}
+# visualize
+ggplot(data_attrition, aes(x = monthly_income)) +
+  geom_histogram(bins = 30, fill = "dodgerblue4", colour = "black") +
+  scale_x_continuous(
+    labels = dollar_format(scale = 1e-3, suffix = "K")
+  ) +
+  labs(
+    title = "Number of employee by monthly income distribution",
+    subtitle = "count value calculated using 30 bins",
+    caption = "Source: IBM Watson",
+    x = NULL,
+    y = NULL
+  ) +
+  theme_minimal()
+```
+
+### Exercise-5
+
+*Using `data_attrition`, could you replicate the plot above?*
+
+```{r exercise-5, exercise=TRUE, exercise.eval=TRUE}
+
+```
+
+Let’s try another plot by splitting the monthly income distribution by department and attrition:
+
+```{r data-viz3, echo=FALSE}
+# prepare visualization data
+data_viz <- data_attrition %>% 
+  mutate(
+    department = department %>%
+      str_replace_all("_", " ") %>% 
+      str_to_title() %>% 
+      str_replace_all("Research Development", "Research & Development"),
+    department = reorder(department, monthly_income),
+    attrition = attrition %>% 
+      str_to_title() %>% 
+      factor(levels = c("Yes", "No"))
+  )
+
+head(data_viz)
+```
+
+
+```{r data-viz4, echo=FALSE}
+# visualize
+ggplot(data_viz, aes(x = department, y = monthly_income)) +
+  geom_boxplot(aes(fill = attrition), outlier.shape = NA) +
+  scale_y_continuous(labels = dollar_format(scale = 1e-3, suffix = "K")) +
+  scale_fill_manual(values = c("#883844", "#208eb7")) +
+  labs(
+    title = "Monthly income distribution",
+    subtitle = "for each department",
+    caption = "Source: IBM Watson",
+    x = NULL,
+    y = NULL,
+    fill = "Attrition",
+    colour = "Attrition"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "top"
+  )
+```
+
+### Exercise-6
+
+*Using `data_viz`, could you replicate the plot above?*
+
+```{r exercise-6, exercise=TRUE, exercise.eval=TRUE}
+# your code here:
+
+```
+
+### Exercise-4
+
+*From exercise above try to answer this question*:
+
+```{r sortable-1, echo=FALSE}
+# Define the answer options
+insects <- c(
+    "Human Resources",
+    "Research & Development",
+    "Sales"
+  )
+
+# Initialize the question
+question_rank(
+  "Sort these departement which have strongest difference in income distribution",
+  answer(insects, correct = TRUE),
+  answer(rev(insects), correct = FALSE, message = "Other direction!"),
+  allow_retry = TRUE
+)
+```
+
+## Chap.2.3: Correlation between Data
+
+* Between continuous variables
+
+The most common form of correlation is between continuous numerical variables. It could show us if the two variables are sharing a variation patterns, which oftenly, very insightful to explaining our dataset.
+
+__*let’s try to visualize how years at company relate to the monthly income for laboratory technicians samples.*__
+
+```{r data-viz5, echo=FALSE}
+
+# aggregation
+data_agg1 <- data_attrition %>% 
+  filter(job_role == "laboratory_technician") %>% 
+  group_by(years_at_company) %>% 
+  summarise(monthly_income = median(monthly_income)) %>% 
+  ungroup()
+
+head(data_agg1)
+
+```
+
+### Exercise-7
+
+*Try to aggregating `data_attrition` become the table above, and named it as `data_agg1`*
+
+```{r exercise-7, exercise=TRUE, exercise.eval=TRUE}
+
+```
+
+
+```{r data-viz8}
+# visualize
+ggplot(data_agg1, aes(x = years_at_company, y = monthly_income)) +
+  geom_point(colour = "dodgerblue4") +
+  geom_smooth(se = FALSE, colour = "darkred") +
+  scale_y_continuous(labels = dollar_format(scale = 1e-3, suffix = "K")) +
+  labs(
+    title = "The relation of years at the company and monthly income",
+    subtitle = "using median value from laboratory technician samples",
+    caption = "Source: IBM Watson",
+    x = NULL,
+    y = NULL
+  ) +
+  theme_minimal()
+
+```
+
+
+As we can see from plot above, there is a relation between years at the company with the monthly income; the longer an employee stay at the company, his/her salary is tend to increase. But `geom_smooth()` here is playing a crucial role in explaining the relation. From the smoothed line, we could see that the relation is not always linear; there is a downturn after 10 years at the company, before it rising again after 17-19 years.
+
+
+__*how about years at company relate to the monthly income for sales executive samples?*__
+
+
+```{r data-viz9, echo=FALSE}
+data_agg2 <- data_attrition %>% 
+  filter(job_role == "sales_executive") %>% 
+  group_by(years_at_company) %>% 
+  summarise(monthly_income = median(monthly_income)) %>% 
+  ungroup()
+
+head(data_agg2)
+```
+
+```{r data-viz10}
+# visualize
+ggplot(data_agg2, aes(x = years_at_company, y = monthly_income)) +
+  geom_point(colour = "dodgerblue4") +
+  geom_smooth(se = FALSE, colour = "darkred") +
+  scale_y_continuous(labels = dollar_format(scale = 1e-3, suffix = "K")) +
+  labs(
+    title = "The relation of years at the company and monthly income",
+    subtitle = "using median value from sales executive samples",
+    caption = "Source: IBM Watson",
+    x = NULL,
+    y = NULL
+  ) +
+  theme_minimal()
+```
+
+__*After take a look at two plots above, can you answer the following question?*__
+
+```{r exercise-8, echo=FALSE}
+question(
+  text = "which job role that have strong relationship between years at the company towards monthly income?", 
+  type = "single",
+  correct = "Great!", 
+  incorrect = "Opps!", allow_retry = TRUE,
+  random_answer_order = FALSE,
+  answer("Sales Executive", correct = TRUE),
+  answer("Laboratory Technician")
+)
+```
+
+
+
